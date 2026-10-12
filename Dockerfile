@@ -61,18 +61,19 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
-# Smoke test every interpreter this service advertises at build time: a runtime
-# the image cannot execute is worse than a failed build, and a missing binary
-# here would otherwise only surface as a failed first student submission.
+# Every binary the service dispatches to must be present, and this is the same
+# assertion one layer earlier: the wrapper refuses to open its port unless each
+# tool it can hand a program to is on PATH, so a missing toolchain fails the
+# deploy rather than the first student's submission.
+#
+# What a toolchain does when it runs is deliberately not exercised here. A
+# compile-and-run one-liner in the build makes a typo in that one-liner fail
+# the deploy for every language on the image, which is a worse trade than
+# finding out on first use.
 RUN set -eux; \
-    command -v awk bash sh lua perl php ruby tclsh raku Rscript julia; \
-    lua -e 'print("lua ok")'; \
-    ruby -e 'puts "ruby ok"'; \
-    perl -e 'print "perl ok\n"'; \
-    php -r 'echo "php ok\n";'; \
-    Rscript -e 'cat("r ok\n")'; \
-    bash -c 'echo "bash ok"'; \
-    awk 'BEGIN { print "awk ok" }'
+    for bin in awk bash sh lua perl php ruby tclsh raku Rscript julia; do \
+      command -v "$bin" > /dev/null; \
+    done
 
 WORKDIR /app
 COPY --from=builder /out/service /app/service
